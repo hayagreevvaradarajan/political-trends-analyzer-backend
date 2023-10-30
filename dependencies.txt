@@ -10,3 +10,4 @@ oracledb==1.4.2
 pycparser==2.21
 pyodbc==5.0.1
 Werkzeug==3.0.1
+flask==3.0.0
