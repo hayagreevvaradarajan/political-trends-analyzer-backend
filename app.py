@@ -73,5 +73,5 @@ def query5():
     conn.close()
     return jsonify({"message": "Connection successful, Query5"})
 
-# if __name__ == '__main__':
-#     app.run(host='localhost', port=5000)
+if __name__ == '__main__':
+    app.run(host='localhost', port=3000)
