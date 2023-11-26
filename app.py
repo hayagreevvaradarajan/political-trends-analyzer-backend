@@ -86,15 +86,15 @@ FROM (
     }
     return jsonify(output_dict)
 
-@app.route('/query3/graph1', methods=['GET'])
-def query3_graph1():
+@app.route('/query3', methods=['GET'])
+def query3():
     params = oracledb.ConnectParams(host="oracle.cise.ufl.edu", port=1521, service_name="orcl")
     conn = oracledb.connect(user="v.vadlamani", password="XEfjppuxN8M49BF8ccGDvnPf", params=params)
     cursor = conn.cursor()
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
     state_name = request.args.get('state_name')
-    sql_query = f"""SELECT
+    sql_query1 = f"""SELECT
     p.statename,
     p.year,
     g.deathcount,
@@ -107,41 +107,8 @@ JOIN
 WHERE
     p.statename = '{state_name}'  
     AND p.year BETWEEN '{start_date}' AND '{end_date}'"""
-    data_array = []
-    cursor.execute(sql_query)
-    description = [description[0] for description in cursor.description]
-    while True:
-        try:
-            row = list(cursor.fetchone())
-            data_dict = {}
-            if row is None:
-                break
-            for i in range(len(description)):
-                record = {
-                    description[i]:row[i]
-                }
-                data_dict.update(record)
-                print(data_dict)
-        except Exception as e:
-            print(e)
-            break
-        finally:
-            data_array.append(data_dict)
-    conn.close()
-    output_dict = {
-        "data": data_array
-    }
-    return jsonify(output_dict)
-
-@app.route('/query3/graph2', methods=['GET'])
-def query3_graph2():
-    params = oracledb.ConnectParams(host="oracle.cise.ufl.edu", port=1521, service_name="orcl")
-    conn = oracledb.connect(user="v.vadlamani", password="XEfjppuxN8M49BF8ccGDvnPf", params=params)
-    cursor = conn.cursor()
-    start_date = request.args.get('start_date')
-    end_date = request.args.get('end_date')
-    state_name = request.args.get('state_name')
-    sql_query = f"""WITH RankedVotes AS (
+    
+    sql_query2 = f"""WITH RankedVotes AS (
     SELECT
         id,
         statefipscode,
@@ -168,10 +135,10 @@ JOIN
     USSTATEFIPSCODE F ON R.statefipscode = F.fipscode
 WHERE
     R.Rank = 1
-    AND F.statename = '{state_name}'
+    AND F.statename = '{state_name.upper()}'
     AND R.year BETWEEN '{start_date}' AND '{end_date}'"""
-    data_array = []
-    cursor.execute(sql_query)
+    data_array_1 = []
+    cursor.execute(sql_query1)
     description = [description[0] for description in cursor.description]
     while True:
         try:
@@ -189,14 +156,35 @@ WHERE
             print(e)
             break
         finally:
-            data_array.append(data_dict)
+            data_array_1.append(data_dict)
+    data_array_2 = []
+    cursor.execute(sql_query2)
+    description2 = [description[0] for description in cursor.description]
+    while True:
+        try:
+            row = list(cursor.fetchone())
+            data_dict = {}
+            if row is None:
+                break
+            for i in range(len(description2)):
+                record = {
+                    description2[i]:row[i]
+                }
+                data_dict.update(record)
+                print(data_dict)
+        except Exception as e:
+            print(e)
+            break
+        finally:
+            data_array_2.append(data_dict)
     conn.close()
     output_dict = {
-        "data": data_array
+        "data_graph1": data_array_1,
+        "data_graph2": data_array_2
     }
     return jsonify(output_dict)
 
-@app.route('/query4/graph1', methods=['GET'])
+@app.route('/query4', methods=['GET'])
 def query4_graph1():
     params = oracledb.ConnectParams(host="oracle.cise.ufl.edu", port=1521, service_name="orcl")
     conn = oracledb.connect(user="v.vadlamani", password="XEfjppuxN8M49BF8ccGDvnPf", params=params)
@@ -204,7 +192,7 @@ def query4_graph1():
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
     state_name = request.args.get('state_name')
-    sql_query = f"""
+    sql_query1 = f"""
 SELECT
     usstatepresidentdata.YEAR,
     usstatepresidentdata.STATENAME,
@@ -218,15 +206,27 @@ SELECT
 FROM
     USSTATEPRESIDENTDATA, usstatepopulationdata
 WHERE
-    usstatepresidentdata.STATENAME = '{state_name}' and
+    usstatepresidentdata.STATENAME = '{state_name.upper()}' and
     upper(usstatepresidentdata.statename) = upper(usstatepopulationdata.statename)
     and usstatepresidentdata.year = usstatepopulationdata.year
     AND usstatepresidentdata.YEAR BETWEEN '{start_date}' AND '{end_date}'
 ORDER BY
     usstatepresidentdata.YEAR
 """
-    data_array = []
-    cursor.execute(sql_query)
+    sql_query2 = f"""SELECT
+        YEAR,
+        INDICATOR,
+        ROUND(SUM(TRADEVALUEM), 2) AS TOTAL_VALUE
+    FROM
+        USTRADEDATA
+    WHERE
+        YEAR BETWEEN '{start_date}' AND '{end_date}'
+    GROUP BY
+        YEAR, INDICATOR
+    ORDER BY
+        YEAR"""
+    data_array_1 = []
+    cursor.execute(sql_query1)
     description = [description[0] for description in cursor.description]
     while True:
         try:
@@ -244,45 +244,19 @@ ORDER BY
             print(e)
             break
         finally:
-            data_array.append(data_dict)
-    conn.close()
-    output_dict = {
-        "data": data_array
-    }
-    return jsonify(output_dict)
-
-@app.route('/query4/graph2', methods=['GET'])
-def query4_graph2():
-    params = oracledb.ConnectParams(host="oracle.cise.ufl.edu", port=1521, service_name="orcl")
-    conn = oracledb.connect(user="v.vadlamani", password="XEfjppuxN8M49BF8ccGDvnPf", params=params)
-    cursor = conn.cursor()
-    start_date = request.args.get('start_date')
-    end_date = request.args.get('end_date')
-    state_name = request.args.get('state_name')
-    sql_query = f"""SELECT
-    YEAR,
-    INDICATOR,
-    ROUND(SUM(TRADEVALUEM), 2) AS TOTAL_VALUE
-FROM
-    USTRADEDATA
-WHERE
-    YEAR BETWEEN '{start_date}' AND '{end_date}'
-GROUP BY
-    YEAR, INDICATOR
-ORDER BY
-    YEAR"""
-    data_array = []
-    cursor.execute(sql_query)
-    description = [description[0] for description in cursor.description]
+            data_array_1.append(data_dict)
+    data_array_2 = []
+    cursor.execute(sql_query2)
+    description2 = [description[0] for description in cursor.description]
     while True:
         try:
             row = list(cursor.fetchone())
             data_dict = {}
             if row is None:
                 break
-            for i in range(len(description)):
+            for i in range(len(description2)):
                 record = {
-                    description[i]:row[i]
+                    description2[i]:row[i]
                 }
                 data_dict.update(record)
                 print(data_dict)
@@ -290,10 +264,11 @@ ORDER BY
             print(e)
             break
         finally:
-            data_array.append(data_dict)
+            data_array_2.append(data_dict)
     conn.close()
     output_dict = {
-        "data": data_array
+        "data_graph1": data_array_1,
+        "data_graph2": data_array_2
     }
     return jsonify(output_dict)
 
