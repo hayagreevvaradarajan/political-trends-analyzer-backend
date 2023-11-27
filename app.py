@@ -345,7 +345,7 @@ WHERE
     return jsonify(output_dict)
 
 @app.route('/query4', methods=['GET'])
-def query4_graph1():
+def query4():
     params = oracledb.ConnectParams(host="oracle.cise.ufl.edu", port=1521, service_name="orcl")
     conn = oracledb.connect(user="v.vadlamani", password="XEfjppuxN8M49BF8ccGDvnPf", params=params)
     cursor = conn.cursor()
