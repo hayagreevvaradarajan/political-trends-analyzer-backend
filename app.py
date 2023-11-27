@@ -86,6 +86,166 @@ FROM (
     }
     return jsonify(output_dict)
 
+@app.route('/query2', methods=['GET'])
+def query2():
+    params = oracledb.ConnectParams(host="oracle.cise.ufl.edu", port=1521, service_name="orcl")
+    conn = oracledb.connect(user="v.vadlamani", password="XEfjppuxN8M49BF8ccGDvnPf", params=params)
+    cursor = conn.cursor()
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    state_name = request.args.get('state_name')
+    sql_query1 = f"""SELECT
+    year,
+    statename,
+    ROUND((SUM(average_row_age * people_number) / NULLIF(SUM(people_number), 0)), 2) as avg_age
+FROM
+    (
+        SELECT
+            uscountypopulationdata.year,
+            uscountyfipscode.countyname,
+            usstatefipscode.statename,
+            ROUND(
+                (
+                    (
+                        uscountypopulationdata.agecategoryone * 2 +
+                        uscountypopulationdata.agecategorytwo * 7 +
+                        uscountypopulationdata.agecategorythree * 12 +
+                        uscountypopulationdata.agecategoryfour * 17 +
+                        uscountypopulationdata.agecategoryfive * 22 +
+                        uscountypopulationdata.agecategorysix * 27 +
+                        uscountypopulationdata.agecategoryseven * 32 +
+                        uscountypopulationdata.agecategoryeight * 37 +
+                        uscountypopulationdata.agecategorynine * 42 +
+                        uscountypopulationdata.agecategoryten * 47 +
+                        uscountypopulationdata.agecategoryeleven * 52 +
+                        uscountypopulationdata.agecategorytwelve * 57 +
+                        uscountypopulationdata.agecategorythirteen * 62 +
+                        uscountypopulationdata.agecategoryfourteen * 67 +
+                        uscountypopulationdata.agecategoryfifteen * 72 +
+                        uscountypopulationdata.agecategorysixteen * 77 +
+                        uscountypopulationdata.agecategoryseventeen * 82 +
+                        uscountypopulationdata.agecategoryeighteen * 87
+                    ) / ((
+                        uscountypopulationdata.agecategoryone +
+                        uscountypopulationdata.agecategorytwo +
+                        uscountypopulationdata.agecategorythree +
+                        uscountypopulationdata.agecategoryfour +
+                        uscountypopulationdata.agecategoryfive +
+                        uscountypopulationdata.agecategorysix +
+                        uscountypopulationdata.agecategoryseven +
+                        uscountypopulationdata.agecategoryeight +
+                        uscountypopulationdata.agecategorynine +
+                        uscountypopulationdata.agecategoryten +
+                        uscountypopulationdata.agecategoryeleven +
+                        uscountypopulationdata.agecategorytwelve +
+                        uscountypopulationdata.agecategorythirteen +
+                        uscountypopulationdata.agecategoryfourteen +
+                        uscountypopulationdata.agecategoryfifteen +
+                        uscountypopulationdata.agecategorysixteen +
+                        uscountypopulationdata.agecategoryseventeen +
+                        uscountypopulationdata.agecategoryeighteen
+                    ) + 1)
+                ), 2
+            ) AS average_row_age,
+            (
+                uscountypopulationdata.agecategoryone +
+                uscountypopulationdata.agecategorytwo +
+                uscountypopulationdata.agecategorythree +
+                uscountypopulationdata.agecategoryfour +
+                uscountypopulationdata.agecategoryfive +
+                uscountypopulationdata.agecategorysix +
+                uscountypopulationdata.agecategoryseven +
+                uscountypopulationdata.agecategoryeight +
+                uscountypopulationdata.agecategorynine +
+                uscountypopulationdata.agecategoryten +
+                uscountypopulationdata.agecategoryeleven +
+                uscountypopulationdata.agecategorytwelve +
+                uscountypopulationdata.agecategorythirteen +
+                uscountypopulationdata.agecategoryfourteen +
+                uscountypopulationdata.agecategoryfifteen +
+                uscountypopulationdata.agecategorysixteen +
+                uscountypopulationdata.agecategoryseventeen +
+                uscountypopulationdata.agecategoryeighteen
+            ) AS people_number
+        FROM
+            uscountypopulationdata
+        JOIN
+            uscountyfipscode ON uscountypopulationdata.countycode = uscountyfipscode.fipscode
+        JOIN
+            usstatefipscode ON uscountyfipscode.statefipscode = usstatefipscode.fipscode
+    ) county_average_age
+    where statename = '{state_name.upper()}'
+GROUP BY
+    year,
+    statename
+ORDER BY
+    year,
+    statename"""
+    
+    sql_query2 = f"""SELECT
+    statename,
+    termstartdate,
+    ROUND(AVG(age), 2) as average_age
+FROM
+    usahouseagetable
+WHERE
+    termstartdate > TO_DATE('1965-01-01', 'YYYY-MM-DD') AND
+    termstartdate < TO_DATE('1985-01-01', 'YYYY-MM-DD') AND
+    UPPER(statename) = '{state_name.upper()}'
+GROUP BY
+    statename,
+    termstartdate
+ORDER BY
+    termstartdate,
+    statename"""
+    
+    data_array_1 = []
+    cursor.execute(sql_query1)
+    description = [description[0] for description in cursor.description]
+    while True:
+        try:
+            row = list(cursor.fetchone())
+            data_dict = {}
+            if row is None:
+                break
+            for i in range(len(description)):
+                record = {
+                    description[i]:row[i]
+                }
+                data_dict.update(record)
+                print(data_dict)
+        except Exception as e:
+            print(e)
+            break
+        finally:
+            data_array_1.append(data_dict)
+    data_array_2 = []
+    cursor.execute(sql_query2)
+    description2 = [description[0] for description in cursor.description]
+    while True:
+        try:
+            row = list(cursor.fetchone())
+            data_dict = {}
+            if row is None:
+                break
+            for i in range(len(description2)):
+                record = {
+                    description2[i]:row[i]
+                }
+                data_dict.update(record)
+                print(data_dict)
+        except Exception as e:
+            print(e)
+            break
+        finally:
+            data_array_2.append(data_dict)
+    conn.close()
+    output_dict = {
+        "data_graph1": data_array_1,
+        "data_graph2": data_array_2
+    }
+    return jsonify(output_dict)
+
 @app.route('/query3', methods=['GET'])
 def query3():
     params = oracledb.ConnectParams(host="oracle.cise.ufl.edu", port=1521, service_name="orcl")
