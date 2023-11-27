@@ -84,6 +84,62 @@ FROM (
     }
     return jsonify(output_dict)
 
+@app.route('/total_count', methods=['GET'])
+def total_count():
+    params = oracledb.ConnectParams(host="oracle.cise.ufl.edu", port=1521, service_name="orcl")
+    conn = oracledb.connect(user="v.vadlamani", password="XEfjppuxN8M49BF8ccGDvnPf", params=params)
+    cursor = conn.cursor()
+    sql_query = sql_query = """
+SELECT SUM(total_rows) AS total_rows_across_tables
+FROM (
+    SELECT COUNT(*) AS total_rows FROM USSTATEPOPULATIONDATA
+    UNION ALL
+    SELECT COUNT(*) FROM USSTATEPRESIDENTDATA
+    UNION ALL
+    SELECT COUNT(*) FROM USTRADEDATA
+    UNION ALL
+    SELECT COUNT(*) FROM USCOUNTYFIPSCODE
+    UNION ALL
+    SELECT COUNT(*) FROM USAHOUSEAGETABLE
+    UNION ALL
+    SELECT COUNT(*) FROM USSTATEGDPDATA
+    UNION ALL
+    SELECT COUNT(*) FROM USGDPDATA
+    UNION ALL
+    SELECT COUNT(*) FROM USCOUNTYPOPULATIONDATA
+    UNION ALL
+    SELECT COUNT(*) FROM SENATEVOTES
+    UNION ALL
+    SELECT COUNT(*) FROM USSTATEFIPSCODE
+    UNION ALL
+    SELECT COUNT(*) FROM HORPOPULARVOTE
+    UNION ALL
+    SELECT COUNT(*) FROM USSTATEGUNDEATHS
+)"""
+    data_array = []
+    cursor.execute(sql_query)
+    description = [description[0] for description in cursor.description]
+    while True:
+        try:
+            row = list(cursor.fetchone())
+            data_dict = {}
+            if row is not None:
+                for i in range(len(description)):
+                    record = {
+                        description[i]:row[i]
+                    }
+                    data_dict.update(record)
+                    print(data_dict)
+                data_array.append(data_dict)
+        except Exception as e:
+            print(e)
+            break
+    conn.close()
+    output_dict = {
+        "data": data_array
+    }
+    return jsonify(output_dict)
+
 @app.route('/query2', methods=['GET'])
 def query2():
     params = oracledb.ConnectParams(host="oracle.cise.ufl.edu", port=1521, service_name="orcl")
