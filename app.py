@@ -479,8 +479,6 @@ def query():
     params = oracledb.ConnectParams(host="oracle.cise.ufl.edu", port=1521, service_name="orcl")
     conn = oracledb.connect(user="v.vadlamani", password="XEfjppuxN8M49BF8ccGDvnPf", params=params)
     cursor = conn.cursor()
-    start_date = request.args.get('start_date')
-    end_date = request.args.get('end_date')
     state_name = request.args.get('state_name')
     sql_query1 = f"""
 WITH RankedVotes AS (
@@ -504,7 +502,7 @@ WITH RankedVotes AS (
         USSTATEFIPSCODE F ON H.statefipscode = F.fipscode
     WHERE
         F.statename = '{state_name.upper()}' 
-        AND H.year BETWEEN '{start_date}' AND '{end_date}'
+        AND H.year BETWEEN '2005' AND '2019'
 )
 SELECT
     id,
@@ -524,18 +522,18 @@ FROM
 WHERE
     VoteRank <= 2
 """
-    sql_query2 = f"""SELECT
-        YEAR,
-        INDICATOR,
-        ROUND(SUM(TRADEVALUEM), 2) AS TOTAL_VALUE
-    FROM
-        USTRADEDATA
-    WHERE
-        YEAR BETWEEN '{start_date}' AND '{end_date}'
-    GROUP BY
-        YEAR, INDICATOR
-    ORDER BY
-        YEAR"""
+    sql_query2 = f"""select * from(select * from (
+(
+select statename,year,round((gdp/population),2)state_gdp_per_capita from(
+(select STATENAME,YEAR,GDP  from USSTATEGDPDATA where quarter='Q4' and statename='{state_name}' order by year) a
+natural join(select * from USSTATEPOPULATIONDATA)
+))  
+natural join(
+select year ,round((gdp/us_population),2)US_GDP_PER_CAPITA 
+from(
+(select * from USGDPDATA) 
+natural join
+(select year,sum(population)US_POPULATION from USSTATEPOPULATIONDATA group by(year)order by year)))))"""
     data_array_1 = []
     cursor.execute(sql_query1)
     description = [description[0] for description in cursor.description]
