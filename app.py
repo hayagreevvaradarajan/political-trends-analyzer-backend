@@ -411,14 +411,18 @@ SELECT
     PARTY,
     usstatepopulationdata.population as total_population,
     ROUND((TOTALVOTES/USSTATEPOPULATIONDATA.POPULATION) * 100, 2) AS VOTER_PARTICIPATION_PERCENTAGE,
-    ROUND((CANDIDATEVOTES / TOTALVOTES) * 100, 2) AS POPULAR_VOTE_PERCENTAGE
+    ROUND((CANDIDATEVOTES / TOTALVOTES) * 100, 2) AS POPULAR_VOTE_PERCENTAGE,
+    CASE
+        WHEN RANK() OVER (PARTITION BY usstatepresidentdata.YEAR, usstatepresidentdata.STATENAME ORDER BY CANDIDATEVOTES DESC) = 1 THEN 'Y'
+        ELSE 'N'
+    END AS Winner
 FROM
     USSTATEPRESIDENTDATA, usstatepopulationdata
 WHERE
-    usstatepresidentdata.STATENAME = '{state_name.upper()}' and
+    usstatepresidentdata.STATENAME = '{state_name.upper()}' and --Florida
     upper(usstatepresidentdata.statename) = upper(usstatepopulationdata.statename)
     and usstatepresidentdata.year = usstatepopulationdata.year
-    AND usstatepresidentdata.YEAR BETWEEN '{start_date}' AND '{end_date}'
+    AND usstatepresidentdata.YEAR BETWEEN {start_date} AND {end_date} --1978 and 2010
 ORDER BY
     usstatepresidentdata.YEAR
 """
