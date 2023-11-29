@@ -482,7 +482,7 @@ ORDER BY
     return jsonify(output_dict)
 
 @app.route('/query5', methods=['GET'])
-def query():
+def query5():
     params = oracledb.ConnectParams(host="oracle.cise.ufl.edu", port=1521, service_name="orcl")
     conn = oracledb.connect(user="v.vadlamani", password="XEfjppuxN8M49BF8ccGDvnPf", params=params)
     cursor = conn.cursor()
@@ -569,16 +569,16 @@ def query6():
     params = oracledb.ConnectParams(host="oracle.cise.ufl.edu", port=1521, service_name="orcl")
     conn = oracledb.connect(user="v.vadlamani", password="XEfjppuxN8M49BF8ccGDvnPf", params=params)
     cursor = conn.cursor()
+    state_name = request.args.get('state_name')
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
-    state_name = request.args.get('state_name')
-    sql_query = f"""SELECT
+    sql_query1 = f"""
+SELECT
     U.year,
     U.state,
-    U.county,
-    ROUND(AVG(U.rate), 2) AS county_avg_unemployment_rate,
-    ROUND(AVG(AVG(U.rate)) OVER (PARTITION BY U.year, U.state), 2) AS state_avg_unemployment_rate,
-    ROUND(AVG(Y.rate), 2) AS country_avg_unemployment_rate,
+    ROUND(AVG(U.rate), 2) AS state_avg_unemployment_rate,
+    
+    ROUND(AVG(Y.rate), 2) AS country_avg_unemployment_rate_yeartodate,
     P.name AS president_name,
     P.party AS president_party,
     P.start_date AS president_start_date,
@@ -592,22 +592,43 @@ JOIN
 LEFT JOIN
     USYEARUNEMPLOYEMENT Y ON U.year = Y.year
 WHERE
-    UPPER(U.state) = '{state_name.upper()}' --ALABAMA
-    AND U.year BETWEEN '{start_date}' AND '{end_date}' --2000 AND 2005
+    UPPER(U.state) = '{state_name.upper()}' --Alabama
+    AND U.year BETWEEN '{start_date}' AND '{end_date}' --2000 and 2005
 GROUP BY
     U.year,
     U.state,
-    U.county,
     P.name,
     P.party,
     P.start_date,
     P.end_date
 ORDER BY
     U.year,
-    U.state,
-    U.county"""
-    data_array = []
-    cursor.execute(sql_query)
+    U.state
+"""
+    sql_query2 = f"""
+SELECT
+    S.statefipscode,
+    F.statename,
+    S.year,
+    ROUND(SUM(CASE WHEN S.partyname = 'REPUBLICAN' THEN S.candidatevotes ELSE 0 END) / SUM(DISTINCT S.totalvotes) * 100,2) AS republican_vote_percentage,
+    ROUND(SUM(CASE WHEN S.partyname = 'DEMOCRAT' THEN S.candidatevotes ELSE 0 END) / SUM(DISTINCT S.totalvotes) * 100,2) AS democrat_vote_percentage,
+    SUM(DISTINCT S.totalvotes) AS total_votes
+FROM
+    HORPOPULARVOTE S
+JOIN
+    USSTATEFIPSCODE F ON S.statefipscode = F.fipscode
+WHERE
+    F.statename = '{state_name.upper()}'  -- CALIFORNIA
+    AND S.year BETWEEN '{start_date}' AND '{end_date}'  -- 2005 and 2019
+GROUP BY
+    S.statefipscode,
+    F.statename,
+    S.year
+ORDER BY
+    S.year
+"""
+    data_array_1 = []
+    cursor.execute(sql_query1)
     description = [description[0] for description in cursor.description]
     while True:
         try:
@@ -620,13 +641,32 @@ ORDER BY
                     }
                     data_dict.update(record)
                     print(data_dict)
-                data_array.append(data_dict)
+                data_array_1.append(data_dict)
         except Exception as e:
             print(e)
             break
+    data_array_2 = []
+    cursor.execute(sql_query2)
+    description2 = [description[0] for description in cursor.description]
+    while True:
+        try:
+            row = list(cursor.fetchone())
+            data_dict = {}
+            if row is not None:
+                for i in range(len(description2)):
+                    record = {
+                        description2[i]:row[i]
+                    }
+                    data_dict.update(record)
+                    print(data_dict)
+                data_array_2.append(data_dict)
+        except Exception as e:
+            print(e)
+            break     
     conn.close()
     output_dict = {
-        "data": data_array
+        "data_graph1": data_array_1,
+        "data_graph2": data_array_2
     }
     return jsonify(output_dict)
 
