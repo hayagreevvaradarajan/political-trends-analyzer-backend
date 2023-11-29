@@ -502,7 +502,7 @@ JOIN
     USSTATEFIPSCODE F ON S.statefipscode = F.fipscode
 WHERE
     F.statename = '{state_name.upper()}'  -- Replace 'YourState' with the desired state name
-    AND S.year BETWEEN '{start_date}' AND '{end_date}'  -- Replace 'StartDate' and 'EndDate' with the desired date range
+    AND S.year BETWEEN '2005' AND '2019'  -- Replace 'StartDate' and 'EndDate' with the desired date range
 GROUP BY
     S.statefipscode,
     F.statename,
