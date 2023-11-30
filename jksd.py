@@ -1,56 +1,87 @@
-sql_query1 = f"""
 SELECT
-    U.year,
-    U.state,
-    ROUND(AVG(U.rate), 2) AS state_avg_unemployment_rate,
-    
-    ROUND(AVG(Y.rate), 2) AS country_avg_unemployment_rate_yeartodate,
-    P.name AS president_name,
-    P.party AS president_party,
-    P.start_date AS president_start_date,
-    P.end_date AS president_end_date
+    year,
+    statename,
+    ROUND((SUM(average_row_age * people_number) / NULLIF(SUM(people_number), 0)), 2) as avg_age
 FROM
-    UNEMPLOYEMENTDATA U
-JOIN
-    USSTATEFIPSCODE F ON UPPER(U.state) = UPPER(F.statename)
-JOIN
-    PRESIDENT P ON U.year BETWEEN EXTRACT(YEAR FROM P.start_date) AND EXTRACT(YEAR FROM P.end_date)
-LEFT JOIN
-    USYEARUNEMPLOYEMENT Y ON U.year = Y.year
-WHERE
-    UPPER(U.state) = '{state_name.upper()}' --Alabama
-    AND U.year BETWEEN '{start_date}' AND '{end_date}' --2000 and 2005
+    (
+        SELECT
+            uscountypopulationdata.year,
+            uscountyfipscode.countyname,
+            usstatefipscode.statename,
+            ROUND(
+                (
+                    (
+                        uscountypopulationdata.agecategoryone * 2 +
+                        uscountypopulationdata.agecategorytwo * 7 +
+                        uscountypopulationdata.agecategorythree * 12 +
+                        uscountypopulationdata.agecategoryfour * 17 +
+                        uscountypopulationdata.agecategoryfive * 22 +
+                        uscountypopulationdata.agecategorysix * 27 +
+                        uscountypopulationdata.agecategoryseven * 32 +
+                        uscountypopulationdata.agecategoryeight * 37 +
+                        uscountypopulationdata.agecategorynine * 42 +
+                        uscountypopulationdata.agecategoryten * 47 +
+                        uscountypopulationdata.agecategoryeleven * 52 +
+                        uscountypopulationdata.agecategorytwelve * 57 +
+                        uscountypopulationdata.agecategorythirteen * 62 +
+                        uscountypopulationdata.agecategoryfourteen * 67 +
+                        uscountypopulationdata.agecategoryfifteen * 72 +
+                        uscountypopulationdata.agecategorysixteen * 77 +
+                        uscountypopulationdata.agecategoryseventeen * 82 +
+                        uscountypopulationdata.agecategoryeighteen * 87
+                    ) / ((
+                        uscountypopulationdata.agecategoryone +
+                        uscountypopulationdata.agecategorytwo +
+                        uscountypopulationdata.agecategorythree +
+                        uscountypopulationdata.agecategoryfour +
+                        uscountypopulationdata.agecategoryfive +
+                        uscountypopulationdata.agecategorysix +
+                        uscountypopulationdata.agecategoryseven +
+                        uscountypopulationdata.agecategoryeight +
+                        uscountypopulationdata.agecategorynine +
+                        uscountypopulationdata.agecategoryten +
+                        uscountypopulationdata.agecategoryeleven +
+                        uscountypopulationdata.agecategorytwelve +
+                        uscountypopulationdata.agecategorythirteen +
+                        uscountypopulationdata.agecategoryfourteen +
+                        uscountypopulationdata.agecategoryfifteen +
+                        uscountypopulationdata.agecategorysixteen +
+                        uscountypopulationdata.agecategoryseventeen +
+                        uscountypopulationdata.agecategoryeighteen
+                    ) + 1)
+                ), 2
+            ) AS average_row_age,
+            (
+                uscountypopulationdata.agecategoryone +
+                uscountypopulationdata.agecategorytwo +
+                uscountypopulationdata.agecategorythree +
+                uscountypopulationdata.agecategoryfour +
+                uscountypopulationdata.agecategoryfive +
+                uscountypopulationdata.agecategorysix +
+                uscountypopulationdata.agecategoryseven +
+                uscountypopulationdata.agecategoryeight +
+                uscountypopulationdata.agecategorynine +
+                uscountypopulationdata.agecategoryten +
+                uscountypopulationdata.agecategoryeleven +
+                uscountypopulationdata.agecategorytwelve +
+                uscountypopulationdata.agecategorythirteen +
+                uscountypopulationdata.agecategoryfourteen +
+                uscountypopulationdata.agecategoryfifteen +
+                uscountypopulationdata.agecategorysixteen +
+                uscountypopulationdata.agecategoryseventeen +
+                uscountypopulationdata.agecategoryeighteen
+            ) AS people_number
+        FROM
+            uscountypopulationdata
+        JOIN
+            uscountyfipscode ON uscountypopulationdata.countycode = uscountyfipscode.fipscode
+        JOIN
+            usstatefipscode ON uscountyfipscode.statefipscode = usstatefipscode.fipscode
+    ) county_average_age
+WHERE statename = '{state_name}' and year >= {start_date} and year <= {end_date}  -- Replace 'CALIFORNIA' with the desired state name
 GROUP BY
-    U.year,
-    U.state,
-    P.name,
-    P.party,
-    P.start_date,
-    P.end_date
+    year,
+    statename
 ORDER BY
-    U.year,
-    U.state
-"""
-
-sql_query2 = f"""
-SELECT
-    S.statefipscode,
-    F.statename,
-    S.year,
-    ROUND(SUM(CASE WHEN S.partyname = 'REPUBLICAN' THEN S.candidatevotes ELSE 0 END) / SUM(DISTINCT S.totalvotes) * 100,2) AS republican_vote_percentage,
-    ROUND(SUM(CASE WHEN S.partyname = 'DEMOCRAT' THEN S.candidatevotes ELSE 0 END) / SUM(DISTINCT S.totalvotes) * 100,2) AS democrat_vote_percentage,
-    SUM(DISTINCT S.totalvotes) AS total_votes
-FROM
-    HORPOPULARVOTE S
-JOIN
-    USSTATEFIPSCODE F ON S.statefipscode = F.fipscode
-WHERE
-    F.statename = '{state_name.upper()}'  -- CALIFORNIA
-    AND S.year BETWEEN '{start_date}' AND '{end_date}'  -- 2005 and 2019
-GROUP BY
-    S.statefipscode,
-    F.statename,
-    S.year
-ORDER BY
-    S.year
-"""
+    year,
+    statename;

@@ -231,7 +231,7 @@ FROM
         JOIN
             usstatefipscode ON uscountyfipscode.statefipscode = usstatefipscode.fipscode
     ) county_average_age
-    where statename = '{state_name.upper()}'
+WHERE statename = '{state_name.upper()}' and year >= {start_date} and year <= {end_date}  -- Replace 'CALIFORNIA' with the desired state name
 GROUP BY
     year,
     statename
@@ -246,8 +246,8 @@ ORDER BY
 FROM
     usahouseagetable
 WHERE
-    termstartdate > TO_DATE('1965-01-01', 'YYYY-MM-DD') AND
-    termstartdate < TO_DATE('1985-01-01', 'YYYY-MM-DD') AND
+    termstartdate > TO_DATE('{start_date}-01-01', 'YYYY-MM-DD') AND
+    termstartdate < TO_DATE('{end_date}-01-01', 'YYYY-MM-DD') AND
     UPPER(statename) = '{state_name.upper()}'
 GROUP BY
     statename,
@@ -509,10 +509,10 @@ GROUP BY
     S.year
 ORDER BY
     S.year"""
-    sql_query2 = f"""select * from(select * from (
+    sql_query2 = f"""select* from(select * from (
 (
 select statename,year,round((gdp/population),2)state_gdp_per_capita from(
-(select STATENAME,YEAR,GDP  from USSTATEGDPDATA where quarter='Q4' and statename='{state_name}' order by year) a
+(select STATENAME,YEAR,GDP  from USSTATEGDPDATA where quarter='Q4' and statename='{state_name}' and year  BETWEEN '{start_date}' AND '{end_date}' order by year) a
 natural join(select * from USSTATEPOPULATIONDATA)
 ))  
 natural join(
