@@ -5,11 +5,46 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 
-@app.route('/query1', methods=['GET'])
-def query1():
+def data_processing(sql_queries):
+    output_dict = {}
+    counter = 1
     params = oracledb.ConnectParams(host="oracle.cise.ufl.edu", port=1521, service_name="orcl")
     conn = oracledb.connect(user="v.vadlamani", password="XEfjppuxN8M49BF8ccGDvnPf", params=params)
     cursor = conn.cursor()
+    for sql_query in sql_queries:
+        data_array = []
+        cursor.execute(sql_query)
+        description = [description[0] for description in cursor.description]
+        while True:
+            try:
+                row = list(cursor.fetchone())
+                data_dict = {}
+                if row is not None:
+                    for i in range(len(description)):
+                        record = {
+                            description[i]:row[i]
+                        }
+                        data_dict.update(record)
+                        print(data_dict)
+                    data_array.append(data_dict)
+                output_dict.update({
+                    f"data_graph{counter}":data_array
+                })
+            except Exception as e:
+                if e.args[0] == "'NoneType' object is not iterable":
+                    for i in range(len(sql_queries)):
+                        output_dict.update({
+                    f"data_graph{counter}":[]
+                })
+                else:
+                    print(e)
+                break
+        counter += 1
+    conn.close()
+    return jsonify(output_dict)    
+
+@app.route('/query1', methods=['GET'])
+def query1():
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
     sector = request.args.get('sector')
@@ -60,35 +95,11 @@ FROM (
     WHERE row_num = 1
 )
 """
-    data_array = []
-    cursor.execute(sql_query)
-    description = [description[0] for description in cursor.description]
-    while True:
-        try:
-            row = list(cursor.fetchone())
-            data_dict = {}
-            if row is not None:
-                for i in range(len(description)):
-                    record = {
-                        description[i]:row[i]
-                    }
-                    data_dict.update(record)
-                    print(data_dict)
-                data_array.append(data_dict)
-        except Exception as e:
-            print(e)
-            break
-    conn.close()
-    output_dict = {
-        "data": data_array
-    }
-    return jsonify(output_dict)
+    output_dict = data_processing([sql_query])
+    return output_dict
 
 @app.route('/total_count', methods=['GET'])
 def total_count():
-    params = oracledb.ConnectParams(host="oracle.cise.ufl.edu", port=1521, service_name="orcl")
-    conn = oracledb.connect(user="v.vadlamani", password="XEfjppuxN8M49BF8ccGDvnPf", params=params)
-    cursor = conn.cursor()
     sql_query = """SELECT SUM(total_rows) AS total_rows_across_tables
 FROM (
     SELECT COUNT(*) AS total_rows FROM USSTATEPOPULATIONDATA
@@ -119,35 +130,11 @@ FROM (
     UNION ALL
     SELECT COUNT(*) FROM UNEMPLOYEMENTDATA
 ) all_tables"""
-    data_array = []
-    cursor.execute(sql_query)
-    description = [description[0] for description in cursor.description]
-    while True:
-        try:
-            row = list(cursor.fetchone())
-            data_dict = {}
-            if row is not None:
-                for i in range(len(description)):
-                    record = {
-                        description[i]:row[i]
-                    }
-                    data_dict.update(record)
-                    print(data_dict)
-                data_array.append(data_dict)
-        except Exception as e:
-            print(e)
-            break
-    conn.close()
-    output_dict = {
-        "data": data_array
-    }
-    return jsonify(output_dict)
+    output_dict = data_processing([sql_query])
+    return output_dict
 
 @app.route('/query2', methods=['GET'])
 def query2():
-    params = oracledb.ConnectParams(host="oracle.cise.ufl.edu", port=1521, service_name="orcl")
-    conn = oracledb.connect(user="v.vadlamani", password="XEfjppuxN8M49BF8ccGDvnPf", params=params)
-    cursor = conn.cursor()
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
     state_name = request.args.get('state_name')
@@ -255,55 +242,11 @@ GROUP BY
 ORDER BY
     termstartdate,
     statename"""
-    
-    data_array_1 = []
-    cursor.execute(sql_query1)
-    description = [description[0] for description in cursor.description]
-    while True:
-        try:
-            row = list(cursor.fetchone())
-            data_dict = {}
-            if row is not None:
-                for i in range(len(description)):
-                    record = {
-                        description[i]:row[i]
-                    }
-                    data_dict.update(record)
-                    print(data_dict)
-                data_array_1.append(data_dict)
-        except Exception as e:
-            print(e)
-            break
-    data_array_2 = []
-    cursor.execute(sql_query2)
-    description2 = [description[0] for description in cursor.description]
-    while True:
-        try:
-            row = list(cursor.fetchone())
-            data_dict = {}
-            if row is not None:
-                for i in range(len(description2)):
-                    record = {
-                        description2[i]:row[i]
-                    }
-                    data_dict.update(record)
-                    print(data_dict)
-                data_array_2.append(data_dict)
-        except Exception as e:
-            print(e)
-            break
-    conn.close()
-    output_dict = {
-        "data_graph1": data_array_1,
-        "data_graph2": data_array_2
-    }
-    return jsonify(output_dict)
+    output_dict = data_processing([sql_query1, sql_query2])
+    return output_dict
 
 @app.route('/query3', methods=['GET'])
 def query3():
-    params = oracledb.ConnectParams(host="oracle.cise.ufl.edu", port=1521, service_name="orcl")
-    conn = oracledb.connect(user="v.vadlamani", password="XEfjppuxN8M49BF8ccGDvnPf", params=params)
-    cursor = conn.cursor()
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
     state_name = request.args.get('state_name')
@@ -350,54 +293,11 @@ WHERE
     R.Rank = 1
     AND F.statename = '{state_name.upper()}'
     AND R.year BETWEEN '{start_date}' AND '{end_date}'"""
-    data_array_1 = []
-    cursor.execute(sql_query1)
-    description = [description[0] for description in cursor.description]
-    while True:
-        try:
-            row = list(cursor.fetchone())
-            data_dict = {}
-            if row is not None:
-                for i in range(len(description)):
-                    record = {
-                        description[i]:row[i]
-                    }
-                    data_dict.update(record)
-                    print(data_dict)
-                data_array_1.append(data_dict)
-        except Exception as e:
-            print(e)
-            break
-    data_array_2 = []
-    cursor.execute(sql_query2)
-    description2 = [description[0] for description in cursor.description]
-    while True:
-        try:
-            row = list(cursor.fetchone())
-            data_dict = {}
-            if row is not None:
-                for i in range(len(description2)):
-                    record = {
-                        description2[i]:row[i]
-                    }
-                    data_dict.update(record)
-                    print(data_dict)
-                data_array_2.append(data_dict)
-        except Exception as e:
-            print(e)
-            break
-    conn.close()
-    output_dict = {
-        "data_graph1": data_array_1,
-        "data_graph2": data_array_2
-    }
-    return jsonify(output_dict)
+    output_dict = data_processing([sql_query1, sql_query2])
+    return output_dict
 
 @app.route('/query4', methods=['GET'])
 def query4():
-    params = oracledb.ConnectParams(host="oracle.cise.ufl.edu", port=1521, service_name="orcl")
-    conn = oracledb.connect(user="v.vadlamani", password="XEfjppuxN8M49BF8ccGDvnPf", params=params)
-    cursor = conn.cursor()
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
     state_name = request.args.get('state_name')
@@ -438,54 +338,11 @@ ORDER BY
         YEAR, INDICATOR
     ORDER BY
         YEAR"""
-    data_array_1 = []
-    cursor.execute(sql_query1)
-    description = [description[0] for description in cursor.description]
-    while True:
-        try:
-            row = list(cursor.fetchone())
-            data_dict = {}
-            if row is not None:
-                for i in range(len(description)):
-                    record = {
-                        description[i]:row[i]
-                    }
-                    data_dict.update(record)
-                    print(data_dict)
-                data_array_1.append(data_dict)
-        except Exception as e:
-            print(e)
-            break
-    data_array_2 = []
-    cursor.execute(sql_query2)
-    description2 = [description[0] for description in cursor.description]
-    while True:
-        try:
-            row = list(cursor.fetchone())
-            data_dict = {}
-            if row is not None:
-                for i in range(len(description2)):
-                    record = {
-                        description2[i]:row[i]
-                    }
-                    data_dict.update(record)
-                    print(data_dict)
-                data_array_2.append(data_dict)
-        except Exception as e:
-            print(e)
-            break
-    conn.close()
-    output_dict = {
-        "data_graph1": data_array_1,
-        "data_graph2": data_array_2
-    }
-    return jsonify(output_dict)
+    output_dict = data_processing([sql_query1, sql_query2])
+    return output_dict
 
 @app.route('/query5', methods=['GET'])
 def query5():
-    params = oracledb.ConnectParams(host="oracle.cise.ufl.edu", port=1521, service_name="orcl")
-    conn = oracledb.connect(user="v.vadlamani", password="XEfjppuxN8M49BF8ccGDvnPf", params=params)
-    cursor = conn.cursor()
     state_name = request.args.get('state_name')
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
@@ -521,54 +378,11 @@ from(
 (select * from USGDPDATA) 
 natural join
 (select year,sum(population)US_POPULATION from USSTATEPOPULATIONDATA group by(year)order by year)))))"""
-    data_array_1 = []
-    cursor.execute(sql_query1)
-    description = [description[0] for description in cursor.description]
-    while True:
-        try:
-            row = list(cursor.fetchone())
-            data_dict = {}
-            if row is not None:
-                for i in range(len(description)):
-                    record = {
-                        description[i]:row[i]
-                    }
-                    data_dict.update(record)
-                    print(data_dict)
-                data_array_1.append(data_dict)
-        except Exception as e:
-            print(e)
-            break
-    data_array_2 = []
-    cursor.execute(sql_query2)
-    description2 = [description[0] for description in cursor.description]
-    while True:
-        try:
-            row = list(cursor.fetchone())
-            data_dict = {}
-            if row is not None:
-                for i in range(len(description2)):
-                    record = {
-                        description2[i]:row[i]
-                    }
-                    data_dict.update(record)
-                    print(data_dict)
-                data_array_2.append(data_dict)
-        except Exception as e:
-            print(e)
-            break     
-    conn.close()
-    output_dict = {
-        "data_graph1": data_array_1,
-        "data_graph2": data_array_2
-    }
-    return jsonify(output_dict)
+    output_dict = data_processing([sql_query1, sql_query2])
+    return output_dict
 
 @app.route('/query6', methods=['GET'])
 def query6():
-    params = oracledb.ConnectParams(host="oracle.cise.ufl.edu", port=1521, service_name="orcl")
-    conn = oracledb.connect(user="v.vadlamani", password="XEfjppuxN8M49BF8ccGDvnPf", params=params)
-    cursor = conn.cursor()
     state_name = request.args.get('state_name')
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
@@ -627,48 +441,8 @@ GROUP BY
 ORDER BY
     S.year
 """
-    data_array_1 = []
-    cursor.execute(sql_query1)
-    description = [description[0] for description in cursor.description]
-    while True:
-        try:
-            row = list(cursor.fetchone())
-            data_dict = {}
-            if row is not None:
-                for i in range(len(description)):
-                    record = {
-                        description[i]:row[i]
-                    }
-                    data_dict.update(record)
-                    print(data_dict)
-                data_array_1.append(data_dict)
-        except Exception as e:
-            print(e)
-            break
-    data_array_2 = []
-    cursor.execute(sql_query2)
-    description2 = [description[0] for description in cursor.description]
-    while True:
-        try:
-            row = list(cursor.fetchone())
-            data_dict = {}
-            if row is not None:
-                for i in range(len(description2)):
-                    record = {
-                        description2[i]:row[i]
-                    }
-                    data_dict.update(record)
-                    print(data_dict)
-                data_array_2.append(data_dict)
-        except Exception as e:
-            print(e)
-            break     
-    conn.close()
-    output_dict = {
-        "data_graph1": data_array_1,
-        "data_graph2": data_array_2
-    }
-    return jsonify(output_dict)
+    output_dict = data_processing([sql_query1, sql_query2])
+    return output_dict
 
 if __name__ == '__main__':
     app.run(host='localhost', port=3000)
