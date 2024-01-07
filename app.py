@@ -2,14 +2,18 @@ from flask import Flask, request
 from flask import jsonify
 import oracledb
 from flask_cors import CORS
+import os
+
 app = Flask(__name__)
 CORS(app)
+from dotenv import load_dotenv
+load_dotenv()
 
 def data_processing(sql_queries):
     output_dict = {}
     counter = 1
-    params = oracledb.ConnectParams(host="oracle.cise.ufl.edu", port=1521, service_name="orcl")
-    conn = oracledb.connect(user="v.vadlamani", password="XEfjppuxN8M49BF8ccGDvnPf", params=params)
+    params = oracledb.ConnectParams(host=os.environ.get('HOST'), port=os.environ.get('DATABASE_PORT'), service_name=os.environ.get('SERVICE_NAME'))
+    conn = oracledb.connect(user=os.environ.get('USERNAME'), password=os.environ.get('PASSWORD'), params=params)
     cursor = conn.cursor()
     for sql_query in sql_queries:
         data_array = []
@@ -17,31 +21,24 @@ def data_processing(sql_queries):
         description = [description[0] for description in cursor.description]
         while True:
             try:
-                row = list(cursor.fetchone())
+                row = list(cursor.fetchall())
                 data_dict = {}
-                if row is not None:
-                    for i in range(len(description)):
-                        record = {
-                            description[i]:row[i]
-                        }
-                        data_dict.update(record)
-                        print(data_dict)
-                    data_array.append(data_dict)
+                for i in range(len(description)):
+                    record = {
+                        description[i]:row[i]
+                    }
+                    data_dict.update(record)
+                    print(data_dict)
+                data_array.append(data_dict)
                 output_dict.update({
                     f"data_graph{counter}":data_array
                 })
             except Exception as e:
-                if e.args[0] == "'NoneType' object is not iterable":
-                    for i in range(len(sql_queries)):
-                        output_dict.update({
-                    f"data_graph{counter}":[]
-                })
-                else:
-                    print(e)
+                print(e)
                 break
         counter += 1
     conn.close()
-    return jsonify(output_dict)    
+    return jsonify(output_dict)
 
 @app.route('/query1', methods=['GET'])
 def query1():
@@ -445,4 +442,4 @@ ORDER BY
     return output_dict
 
 if __name__ == '__main__':
-    app.run(host='localhost', port=3000)
+    app.run(host=os.environ.get('SERVER_IP'), port=os.environ.get('SERVER_PORT'))
